@@ -7,9 +7,9 @@ from aiogram.filters.callback_data import CallbackData
 def get_callback_btns(
         *,
         btns: dict[str,str],
-        sizes: tuple[int] = (1,)):
+        sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
 
     for text, data in btns.items():
-        keyboard.add(InlineKeyboardButton(text=text, url=data))
+        keyboard.add(InlineKeyboardButton(text=text, callback_data=data))
     return keyboard.adjust(*sizes).as_markup()
