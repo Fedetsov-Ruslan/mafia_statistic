@@ -4,11 +4,6 @@ from datetime import date
 
 import enum
 
-
-class Gender(enum.Enum):
-    male = 'Мужской'
-    female = 'Женский'
-
 class Base(DeclarativeBase):
     
     created: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
@@ -19,6 +14,7 @@ class Games(Base):
     __tablename__='games'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    types_game: Mapped[str] = mapped_column(String(15), nullable=False)
     date_game: Mapped[date] = mapped_column(Date, nullable=False)
     gamers: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False)
     roles: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
@@ -48,7 +44,7 @@ class Users(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     nickname: Mapped[str] = mapped_column(String(150), nullable=False)
-    gender: Mapped[Gender] = mapped_column(Enum(Gender), nullable=True)
+    gender: Mapped[str] = mapped_column(String(15), nullable=True)
     club: Mapped[str] = mapped_column(String(150), nullable=True)
     # birthdate: Mapped[date] = mapped_column(Date, nullable=True)
     

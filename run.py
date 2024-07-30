@@ -9,11 +9,13 @@ from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
 from app.handlers.user_private import user_private_router
 
+
 load_dotenv()
 
 bot = Bot(token=os.getenv("TG_TOKEN"))
 dp = Dispatcher()
 dp.include_router(user_private_router)
+
 
 async def on_startup():
     # await drop_db()
