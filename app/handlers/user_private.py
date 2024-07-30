@@ -1,6 +1,6 @@
 from aiogram import Router, F, types
 from aiogram.types import Message
-from aiogram.filters import CommandStart, Command, StateFilter
+from aiogram.filters import CommandStart, Command, StateFilter, or_f
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +22,7 @@ class AddUser(StatesGroup):
     nickname = State()
     gender = State()
     club = State()
-    birthdate = State()
+    confirmation = State()
     add_complite = State()
 
 user_private_router = Router()
@@ -46,7 +46,7 @@ async def users(callback: types.CallbackQuery, state: FSMContext):
     }, sizes=(2, 2)))
     await state.set_state(ActionSelection.users)
 
-@user_private_router.callback_query(ActionSelection.users, F.data.startswith('add_user'))
+@user_private_router.callback_query(or_f(ActionSelection.users, AddUser.confirmation), F.data.startswith('add_user'))
 async def add_nickname(callback:types.CallbackQuery, state: FSMContext):
     await callback.message.answer('Введите никнейм')
 
@@ -70,27 +70,33 @@ async def add_club(callback:types.CallbackQuery, state: FSMContext):
     await state.set_state(AddUser.club)
 
 
-# async def add_birthdate(message:types.Message, state: FSMContext):
-#     await state.update_data(club=message.text)
-#     await message.answer('Введите дату рождения. Или пропустите и идите дальше.')
-
-#     await state.set_state(AddUser.birthdate)
-
 @user_private_router.message(AddUser.club)
-async def add_user(message:types.Message, session: AsyncSession, state: FSMContext):
+async def add_confirmation(message:types.Message, state: FSMContext):
     await state.update_data(club=message.text)
     data = await state.get_data()
+    await message.answer(f"игровой ник - {data['nickname']}, \n" 
+    f"пол - {data['gender']}, \n" 
+    f"игровой клуб - {data['club']}, \n" 
+    f"Все верно?", reply_markup=get_callback_btns(btns={
+        'Да': 'yes',
+        'Нет': 'add_user',
+    }))
 
+    await state.set_state(AddUser.confirmation)
+
+@user_private_router.callback_query(AddUser.confirmation, F.data.startswith('yes'))
+async def add_user(callback:types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    data = await state.get_data()
 
     await orm_add_user(session, data)
-    await state.set_state(ActionSelection.choice_action)
-    await state.set_state(AddUser.add_complite)
-    await message.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
+    await callback.message.answer(f"Игрок {data['nickname']} добавлен")
+    await callback.message.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
         'Игроки': 'users',
         'Игры': 'games',
         'Статистика': 'statistics',
-    }))
-
+    }, sizes=(3, )))
+    await state.set_state(AddUser.add_complite)
+    await state.set_state(ActionSelection.choice_action)
 
     
 
