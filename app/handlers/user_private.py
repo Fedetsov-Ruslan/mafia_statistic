@@ -21,6 +21,9 @@ class ActionSelection(StatesGroup):
     add_game_or_show_game = State()
     add_players_in_game = State()
     add_role = State()
+    add_fol = State()
+    add_point = State()
+
 
 
 
@@ -146,12 +149,12 @@ async def choice_type_game(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(ActionSelection.add_game_or_show_game)
 
 @user_private_router.callback_query(ActionSelection.add_game_or_show_game, F.data.startswith('add_game'))
-async def start_handler(callback: types.CallbackQuery, state:FSMContext, session:AsyncSession):
+async def start_handler_for_add_nickname(callback: types.CallbackQuery, state:FSMContext, session:AsyncSession):
     
     nicknames = await orm_get_all_nicknames(session)
     
     await state.update_data(add_game_or_swow_game=nicknames)
-    print(nicknames)
+    
     await callback.message.edit_text("Выберите один из вариантов:", reply_markup=get_paginator_keyboard(data=nicknames))
     await state.set_state(ActionSelection.add_players_in_game)
 
@@ -165,13 +168,14 @@ async def handle_pagination(callback_query: types.CallbackQuery, state: FSMConte
     # await bot.answer_callback_query(callback_query.id)
 
 @user_private_router.callback_query(ActionSelection.add_players_in_game, F.data.startswith('select_'))
-async def add_game(callback: types.CallbackQuery, state: FSMContext, session:AsyncSession): 
+async def add_nickname(callback: types.CallbackQuery, state: FSMContext, session:AsyncSession): 
     data = await state.get_data()
-    print(f'data2{data}')
+    
     type_game = data['type_game']
     all_nicknames = data['add_game_or_swow_game']
     nick = callback.data.split('_')[1]
     data = await state.get_data()
+    
     nicknames = data.get("add_players_in_game", [])
 
     if nick not in nicknames:
@@ -185,7 +189,9 @@ async def add_game(callback: types.CallbackQuery, state: FSMContext, session:Asy
             await callback.message.edit_text(f'Вы добавили {nick}. Всего игроков добавлено: {len(nicknames)}',reply_markup=get_paginator_keyboard(page=page, data=all_nicknames))
             # await bot.answer_callback_query(callback.id)
         else:
-            await callback.message.answer(f"Вы выбрали: {', '.join(nicknames)}")       
+            await callback.message.answer(f"Вы выбрали: {', '.join(nicknames)}", reply_markup=get_callback_btns(btns={
+                'Ок': 'add_role'
+            }))       
             await state.set_state(ActionSelection.add_role)
             # await bot.answer_callback_query(callback.id)
     else:
@@ -200,5 +206,82 @@ async def add_game(callback: types.CallbackQuery, state: FSMContext, session:Asy
     }, sizes=(3, )))
             await state.clear()
             await state.set_state(ActionSelection.choice_action)
+
+@user_private_router.callback_query(ActionSelection.add_role, F.data.startswith('add_role'))
+async def start_handler_for_add_role(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    roles = data.get('add_role', [])    
+    await callback.message.answer(f'Выберите роль для {nicknames[len(roles)]}', reply_markup=get_callback_btns(btns={
+            'Мирный': 'mir',
+            'Мафия': 'mafia',
+            'Шериф': 'Sheriff',
+            'Дон': 'Don',
+        }))
+@user_private_router.callback_query(ActionSelection.add_role, or_f(F.data.startswith('mir'), F.data.startswith('mafia'), F.data.startswith('Sheriff'), F.data.startswith('Don')))
+async def add_role(callback: types.CallbackQuery, state: FSMContext):
+    role = callback.data
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    roles = data.get('add_role', [])
+    roles.append(role)
+    await state.update_data(add_role=roles)
+    
+    print(roles)
+    if len(roles) < 10:
+
+        await callback.message.edit_text(f'Выберите роль для {nicknames[len(roles)]}', reply_markup=get_callback_btns(btns={
+            'Мирный': 'mir',
+            'Мафия': 'mafia',
+            'Шериф': 'Sheriff',
+            'Дон': 'Don',
+        }))
+    else:
+        combined = [f'{nick} - {role}' for nick, role in zip(nicknames, roles)]
+        await callback.message.edit_text(' ;'.join(combined), reply_markup=get_callback_btns(btns={
+            'Ок': 'add_fol'
+        }))
+        await state.set_state(ActionSelection.add_fol)
+
+@user_private_router.callback_query(ActionSelection.add_fol, F.data.startswith('add_fol'))
+async def start_handler_for_add_fol(callback: types.CallbackQuery, state: FSMContext):
+
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    fols = data.get('add_fol', [])
+    await callback.message.answer(f'Выберите количество фолов для {nicknames[len(fols)]}', reply_markup=get_callback_btns(btns={
+        '0': '0',
+        '1': '1',
+        '2': '2',
+        '3': '3',
+        '4': '4',
+    }))
+
+@user_private_router.callback_query(ActionSelection.add_fol, or_f(F.data.startswith('0'), F.data.startswith('1'), F.data.startswith('2'), F.data.startswith('3'), F.data.startswith('4')))
+async def add_fol(callback: types.CallbackQuery, state: FSMContext):
+    fol = callback.data
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    fols = data.get('add_fol', [])
+    fols.append(fol)
+    await state.update_data(add_fol=fols)
+    if len(fols) < 10:
+        await callback.message.edit_text(f'Выберите количество фолов для {nicknames[len(fols)]}', reply_markup=get_callback_btns(btns={
+            '0': '0',
+            '1': '1',
+            '2': '2',
+            '3': '3',
+            '4': '4',
+        }))
+    else:
+        combined = [f'{nick} - {fol}' for nick, fol in zip(nicknames, fols)]
+        await callback.message.edit_text(';    '.join(combined), reply_markup=get_callback_btns(btns={
+            'Ок': 'add_role'
+        }))
+        await state.set_state(ActionSelection.add_role)
+
+
+
+
     
 
