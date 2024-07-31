@@ -2,8 +2,6 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
-
-
 def get_callback_btns(
         *,
         btns: dict[str,str],
@@ -28,11 +26,6 @@ def get_paginator_keyboard(*,
             keyboard.add(InlineKeyboardButton(text=user + " ✅", callback_data=f"select_{user}"))
         else:
             keyboard.add(InlineKeyboardButton(text=user, callback_data=f"select_{user}"))
-    # buttons = [InlineKeyboardButton(
-    #     text=option + (" ✅" if option in data else ""),
-    #     callback_data=f"select_{option}"
-    # ) for option in data[start:end]]
-    # keyboard.add(*buttons)
 
     navigation_buttons = []
     if start > 0:
@@ -42,3 +35,23 @@ def get_paginator_keyboard(*,
 
     keyboard.add(*navigation_buttons)
     return keyboard.adjust(*sizes).as_markup()
+
+def get_first_dead_kbds(
+        *,
+        data: list[str] = [],):
+    keyboard = InlineKeyboardBuilder()
+
+    for user in data:
+        keyboard.add(InlineKeyboardButton(text=user, callback_data=f"fd_{user}"))
+    keyboard.add(InlineKeyboardButton(text='ПУ нету', callback_data='no_dead'))
+    return keyboard.adjust(5,5,1).as_markup()
+
+def get_best_step_kbds(
+        *,
+        data: list[str] = [],):
+    keyboard = InlineKeyboardBuilder()
+
+    for user in data:
+        keyboard.add(InlineKeyboardButton(text=user, callback_data=f"bs_{user}"))
+    
+    return keyboard.adjust(5,5).as_markup()
