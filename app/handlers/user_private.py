@@ -30,7 +30,7 @@ class AddGame(StatesGroup):
     add_best_step = State()
     winner = State()
     date_game = State()
-    revie = State()
+    review = State()
 
 
 class AddUser(StatesGroup):
@@ -41,8 +41,28 @@ class AddUser(StatesGroup):
     confirmation = State()
     add_complite = State()
 
+POINT_IN_GAME = {
+        '-0.5': '-0.5',
+        '0': '0',
+        '0.1': '0.1',
+        '0.2': '0.2',
+        '0.3': '0.3',
+        '0.4': '0.4',
+        '0.5': '0.5',
+        '0.6': '0.6',
+        '0.7': '0.7',
+        '0.8': '0.8',
+        '0.9': '0.9',
+        '1': '1',
+        '1.1': '1.1',
+        '1.2': '1.2',
+        '1.3': '1.3',
+        '1.4': '1.4',
+        '1.5': '1.5',}
 
 user_private_router = Router()
+
+# calendar_callback = CallbackData(['simple_calendar', 'act', 'year', 'month', 'day'])
     
 @user_private_router.message(CommandStart())
 async def start(callback: CallbackQuery, state: FSMContext):
@@ -156,11 +176,8 @@ async def choice_type_game(callback: CallbackQuery, state: FSMContext):
 
 @user_private_router.callback_query(ActionSelection.add_game_or_show_game, F.data.startswith('add_game'))
 async def start_handler_for_add_nickname(callback: CallbackQuery, state:FSMContext, session:AsyncSession):
-    
     nicknames = await orm_get_all_nicknames(session)
-    
     await state.update_data(add_game_or_swow_game=nicknames)
-    
     await callback.message.edit_text("Выберите один из вариантов:", reply_markup=get_paginator_keyboard(data=nicknames))
     await state.set_state(AddGame.add_players_in_game)
 
@@ -175,8 +192,7 @@ async def handle_pagination(callback: CallbackQuery, state: FSMContext):
 
 @user_private_router.callback_query(AddGame.add_players_in_game, F.data.startswith('select_'))
 async def add_nickname(callback: CallbackQuery, state: FSMContext, session:AsyncSession): 
-    data = await state.get_data()
-    
+    data = await state.get_data()    
     type_game = data['type_game']
     all_nicknames = data['add_game_or_swow_game']
     nick = callback.data.split('_')[1]
@@ -195,8 +211,10 @@ async def add_nickname(callback: CallbackQuery, state: FSMContext, session:Async
             await callback.message.edit_text(f'Вы добавили {nick}. Всего игроков добавлено: {len(nicknames)}',reply_markup=get_paginator_keyboard(page=page, data=all_nicknames))
             # await bot.answer_callback_query(callback.id)
         else:
-            await callback.message.answer(f"Вы выбрали: {', '.join(nicknames)}", reply_markup=get_callback_btns(btns={
-                'Ок': 'add_role'
+            formatted_nicknames = ",  ".join([f"{i+1}) {nickname}" for i, nickname in enumerate(nicknames)])
+            await callback.message.edit_text(f"Вы выбрали: {formatted_nicknames}", reply_markup=get_callback_btns(btns={
+                'Ок': 'add_role',
+                'изменить': 'add_game',
             }))       
             await state.set_state(AddGame.add_role)
             # await bot.answer_callback_query(callback.id)
@@ -212,6 +230,16 @@ async def add_nickname(callback: CallbackQuery, state: FSMContext, session:Async
     }, sizes=(3, )))
             await state.clear()
             await state.set_state(ActionSelection.choice_action)
+
+@user_private_router.callback_query(AddGame.add_role,  F.data.startswith('add_game')) 
+async def correct_users_in_game(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    nicknames = data['add_game_or_swow_game']
+    await state.update_data(add_players_in_game=[])    
+    await callback.message.edit_text("Выберите один из вариантов:", reply_markup=get_paginator_keyboard(data=nicknames))
+    await state.set_state(AddGame.add_players_in_game)
+
+
 
 @user_private_router.callback_query(AddGame.add_role, F.data.startswith('add_role'))
 async def start_handler_for_add_role(callback: CallbackQuery, state: FSMContext):
@@ -244,13 +272,27 @@ async def add_role(callback: CallbackQuery, state: FSMContext):
     else:
         combined = [f'{nick} - {role}' for nick, role in zip(nicknames, roles)]
         await callback.message.edit_text(' ;'.join(combined), reply_markup=get_callback_btns(btns={
-            'Ок': 'add_fol'
+            'Ок': 'add_fol',
+            'Изменить':'add_role'
         }))
         await state.set_state(AddGame.add_fol)
 
+@user_private_router.callback_query(AddGame.add_fol, F.data.startswith('add_role'))
+async def correct_role_in_game(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(add_role=[])
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    roles = data.get('add_role', [])    
+    await callback.message.edit_text(f'Выберите роль для {nicknames[len(roles)]}', reply_markup=get_callback_btns(btns={
+            'Мирный': 'mir',
+            'Мафия': 'mafia',
+            'Шериф': 'Sheriff',
+            'Дон': 'Don',
+        }))
+    await state.set_state(AddGame.add_role)
+    
 @user_private_router.callback_query(AddGame.add_fol, F.data.startswith('add_fol'))
 async def start_handler_for_add_fol(callback: CallbackQuery, state: FSMContext):
-
     data = await state.get_data()
     nicknames = data["add_players_in_game"]
     fols = data.get('add_fol', [])
@@ -281,35 +323,32 @@ async def add_fol(callback: CallbackQuery, state: FSMContext):
     else:
         combined = [f'{nick} - {fol}' for nick, fol in zip(nicknames, fols)]
         await callback.message.edit_text(';    '.join(combined), reply_markup=get_callback_btns(btns={
-            'Ок': 'add_point'
+            'Ок': 'add_point',
+            'Изменить':'add_fol'
         }))
         await state.set_state(AddGame.add_point)
+
+@user_private_router.callback_query(AddGame.add_point, F.data.startswith('add_fol'))
+async def correct_fol_in_game(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(add_fol=[])
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    fols = data.get('add_fol', [])    
+    await callback.message.edit_text(f'Выберите количество фолов для {nicknames[len(fols)]}', reply_markup=get_callback_btns(btns={
+            '0': '0',
+            '1': '1',
+            '2': '2',
+            '3': '3',
+            '4': '4',
+        }))
+    await state.set_state(AddGame.add_fol)
     
 @user_private_router.callback_query(AddGame.add_point, F.data.startswith('add_point'))
 async def start_handler_for_add_point(callback: CallbackQuery, state: FSMContext):
-
     data = await state.get_data()
     nicknames = data["add_players_in_game"]
     points = data.get('add_point', [])
-    await callback.message.answer(f'Выберите количество очков для {nicknames[len(points)]}', reply_markup=get_callback_btns(btns={
-        '-0.5': '-0.5',
-        '0': '0',
-        '0.1': '0.1',
-        '0.2': '0.2',
-        '0.3': '0.3',
-        '0.4': '0.4',
-        '0.5': '0.5',
-        '0.6': '0.6',
-        '0.7': '0.7',
-        '0.8': '0.8',
-        '0.9': '0.9',
-        '1': '1',
-        '1.1': '1.1',
-        '1.2': '1.2',
-        '1.3': '1.3',
-        '1.4': '1.4',
-        '1.5': '1.5',
-    }, sizes=(5, 5, 5)))
+    await callback.message.answer(f'Выберите количество очков для {nicknames[len(points)]}', reply_markup=get_callback_btns(btns=POINT_IN_GAME, sizes=(5, 5, 5)))
 
 @user_private_router.callback_query(AddGame.add_point, or_f(F.data.startswith('-0.5'), F.data.startswith('0'), F.data.startswith('1')))
 async def add_point(callback: CallbackQuery, state: FSMContext):
@@ -320,31 +359,23 @@ async def add_point(callback: CallbackQuery, state: FSMContext):
     points.append(point)
     await state.update_data(add_point=points)
     if len(points) < 10:
-        await callback.message.edit_text(f'Выберите количество очков для {nicknames[len(points)]}', reply_markup=get_callback_btns(btns={
-            '-0.5': '-0.5',
-            '0': '0',
-            '0.1': '0.1',
-            '0.2': '0.2',
-            '0.3': '0.3',
-            '0.4': '0.4',
-            '0.5': '0.5',
-            '0.6': '0.6',
-            '0.7': '0.7',
-            '0.8': '0.8',
-            '0.9': '0.9',
-            '1': '1',
-             '1.1': '1.1',
-            '1.2': '1.2',
-            '1.3': '1.3',
-            '1.4': '1.4',
-            '1.5': '1.5',
-        }, sizes=(5, 5, 5)))
+        await callback.message.edit_text(f'Выберите количество очков для {nicknames[len(points)]}', reply_markup=get_callback_btns(btns=POINT_IN_GAME, sizes=(5, 5, 5)))
     else:
         combined = [f'{nick} - {point}' for nick, point in zip(nicknames, points)]
         await callback.message.edit_text(';    '.join(combined), reply_markup=get_callback_btns(btns={
-            'Ок': 'add_first_dead'
+            'Ок': 'add_first_dead',
+            'Изменить':'add_point'
         }))
         await state.set_state(AddGame.add_first_dead)
+
+@user_private_router.callback_query(AddGame.add_first_dead, F.data.startswith('add_point'))
+async def correct_point_in_game(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(add_point=[])
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    points = data.get('add_point', [])    
+    await callback.message.edit_text(f'Выберите количество очков для {nicknames[len(points)]}', reply_markup=get_callback_btns(btns=POINT_IN_GAME, sizes=(5, 5, 5)))
+    await state.set_state(AddGame.add_point)
 
 @user_private_router.callback_query(AddGame.add_first_dead, F.data.startswith('add_first_dead'))
 async def add_first_dead(callback: CallbackQuery, state: FSMContext):
@@ -374,11 +405,21 @@ async def add_best_step(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(f'Выберите лучший ход ПУ игрока. Добавлены: {best_step}', reply_markup=get_best_step_kbds(data=nicknames))
     else:
         await callback.message.edit_text(f'ЛХ игрока {data["add_first_dead"]}: {best_step[0]} {best_step[1]} {best_step[2]}', reply_markup=get_callback_btns(btns={
-            'Ок': 'revie'
+            'Ок': 'winner',
+            'Изменить':'add_best_step'
         }))
         await state.set_state(AddGame.winner)
 
-@user_private_router.callback_query(AddGame.winner, F.data.startswith('revie'))
+@user_private_router.callback_query(AddGame.winner, F.data.startswith('add_best_step'))
+async def correct_best_step(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(add_best_step=[])
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    points = data.get('add_point', [])    
+    await callback.message.edit_text(f'Выберите лучший ход ПУ игрока', reply_markup=get_best_step_kbds(data=nicknames))
+    await state.set_state(AddGame.add_best_step)
+
+@user_private_router.callback_query(AddGame.winner, F.data.startswith('winner'))
 async def add_winner(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.answer('Выберите победителя', reply_markup=get_callback_btns(btns={
@@ -388,18 +429,39 @@ async def add_winner(callback: CallbackQuery, state: FSMContext):
         }))
     await state.set_state(AddGame.date_game)
 
-@user_private_router.callback_query(AddGame.date_game)
+@user_private_router.callback_query(AddGame.date_game, or_f(F.data.startswith('mir'), F.data.startswith('mafia'), F.data.startswith('draw')))
 async def add_date_game(callback: CallbackQuery, state: FSMContext):
     await state.update_data(add_winner=callback.data)
     await callback.message.answer("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar())
 
-    await state.set_state(AddGame.revie)
-
-@user_private_router.callback_query(AddGame.revie)
+@user_private_router.callback_query(AddGame.date_game, F.data.startswith('simple_calendar'))
 async def add_revie(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(add_date_game=callback.data.split('DAY:')[1].replace(':', '-'))
-    data = await state.get_data()
+    if callback.data.split(':')[1] == 'PREV-MONTH':
+        new_month = int(callback.data.split(':')[3]) - 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(month=new_month))
+    elif callback.data.split(':')[1] == 'NEXT-MONTH':
+        new_month = int(callback.data.split(':')[3]) + 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(month=new_month))
+    elif callback.data.split(':')[1] == 'PREV-YEAR':
+        new_year = int(callback.data.split(':')[2]) - 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(year=new_year))
+    elif callback.data.split(':')[1] == 'NEXT-YEAR':
+        new_year = int(callback.data.split(':')[2]) + 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(year=new_year))
+    elif callback.data.split(':')[1] == 'DAY':
+        day = callback.data.split('DAY:')[1].replace(':', '-')
+        await state.update_data(date_game=day)
+        await state.set_state(AddGame.review)
+    else:
+        await callback.message.edit_text("Выберите дату или с помощью '<' и '>' выберите месяц:", reply_markup=await SimpleCalendar().start_calendar())
+    
+    
+    data = await state.get_data()    
     print(data)
+
+
+
+
 
 
 
