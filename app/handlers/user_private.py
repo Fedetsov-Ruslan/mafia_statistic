@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram_calendar import  SimpleCalendar
 
-from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users
+from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_save_game
 from app.kbds.inline import get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard
 
 
@@ -31,6 +31,7 @@ class AddGame(StatesGroup):
     winner = State()
     date_game = State()
     review = State()
+    
 
 
 class AddUser(StatesGroup):
@@ -135,6 +136,15 @@ async def add_user(callback:CallbackQuery, session: AsyncSession, state: FSMCont
     await state.clear()
     await state.set_state(ActionSelection.choice_action)
 
+# @user_private_router.callback_query(F.start.swith('back'),  StateFilter('*'))
+# async def back(callback:CallbackQuery, state: FSMContext):
+#     ccurent_state = await state.get_state()
+    
+#     stack = await state.get_data()
+#     print(stack)
+#     print(stack['stack'])
+
+
 
 @user_private_router.callback_query(ActionSelection.users, F.data.startswith('get_all_in_club'))
 async def get_all_in_club(callback:CallbackQuery, session: AsyncSession, state:FSMContext):
@@ -159,7 +169,7 @@ async def games(callback: CallbackQuery, state: FSMContext):
         'Турнир' : 'tournament',
         'Назад' : 'back',
     }))
-
+    s = 'type_game'
     await state.set_state(ActionSelection.type_game)
 
 @user_private_router.callback_query(ActionSelection.type_game, or_f(F.data.startswith('ranked'), F.data.startswith('tournament')))
@@ -451,13 +461,58 @@ async def add_revie(callback: CallbackQuery, state: FSMContext):
     elif callback.data.split(':')[1] == 'DAY':
         day = callback.data.split('DAY:')[1].replace(':', '-')
         await state.update_data(date_game=day)
+        data = await state.get_data()
+        print(data)
+        gamers = data["add_players_in_game"]
+        roles = data["add_role"]
+        points = data.get('add_point', [])
+        best_step = data.get('add_best_step', [])
+        winner = data.get('add_winner', [])
+        date = data.get('date_game')
+        data_game = [f'{gamer}:  {role} - {point}' for gamer, role, point in zip(gamers, roles, points)]
+
+        await callback.message.edit_text(f'Игроки: {data_game}\nЛХ: {best_step}\nПобедитель: {winner}\nДата: {date}', reply_markup=get_callback_btns(btns={
+            'Сохранить':'save',
+            'Отменить':'cancel'
+        }))
         await state.set_state(AddGame.review)
     else:
         await callback.message.edit_text("Выберите дату или с помощью '<' и '>' выберите месяц:", reply_markup=await SimpleCalendar().start_calendar())
     
+     
     
-    data = await state.get_data()    
-    print(data)
+    
+@user_private_router.callback_query(AddGame.review, F.data.startswith('save'))
+async def save_game(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    await orm_save_game(session, data=data )
+    await state.clear()
+
+    await callback.message.edit_text('Игра сохранена')
+    await callback.message.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
+        'Игроки': 'users',
+        'Игры': 'games',
+        'Статистика': 'statistics',
+    }, sizes=(3, )))
+    await state.set_state(ActionSelection.choice_action)
+
+@user_private_router.callback_query(AddGame.review, F.data.startswith('cancel'))
+async def cancel_game(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+
+    await callback.message.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
+        'Игроки': 'users',
+        'Игры': 'games',
+        'Статистика': 'statistics',
+    }, sizes=(3, )))
+    await state.set_state(ActionSelection.choice_action)
+
+
+
+
+
+
+
 
 
 

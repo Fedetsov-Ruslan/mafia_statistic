@@ -16,12 +16,13 @@ class Games(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     types_game: Mapped[str] = mapped_column(String(15), nullable=False)
     date_game: Mapped[date] = mapped_column(Date, nullable=False)
-    gamers: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False)
+    gamers: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
     roles: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
     fols: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False)
-    points: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False)
-    best_step: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=True)
-    first_dead: Mapped[int] = mapped_column(Integer, nullable=True)
+    points: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
+    best_step: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=True)
+    first_dead: Mapped[str] = mapped_column(String(150), nullable=True)
+    winner: Mapped[str] = mapped_column(String(15), nullable=True)
 
 
 class Statistics(Base):
