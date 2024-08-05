@@ -2,6 +2,13 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
+def get_start_menu_kbds():
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(InlineKeyboardButton(text="👤 Users", callback_data="users"))
+    keyboard.add(InlineKeyboardButton(text="🎮 Games", callback_data="games"))
+    keyboard.add(InlineKeyboardButton(text="📊 Statistics", callback_data="statistics"))
+    return keyboard.as_markup()
+
 def get_callback_btns(
         *,
         btns: dict[str,str],

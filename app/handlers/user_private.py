@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram_calendar import  SimpleCalendar
 
 from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_save_game
-from app.kbds.inline import get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard
+from app.kbds.inline import get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
 
 
 class ActionSelection(StatesGroup):
@@ -67,15 +67,13 @@ user_private_router = Router()
     
 @user_private_router.message(CommandStart())
 async def start(callback: CallbackQuery, state: FSMContext):
-    await callback.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
-        'Игроки': 'users',
-        'Игры': 'games',
-        'Статистика': 'statistics',
-    }, sizes=(3, )))
+    await callback.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
+    await state.clear()
     await state.set_state(ActionSelection.choice_action)
 
 @user_private_router.callback_query(ActionSelection.choice_action, F.data.startswith('users'))
 async def users(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(choice_action=callback.data)
     await callback.message.edit_text('Статистика по мафии', reply_markup=get_callback_btns(btns={
         'Добавить игрока': 'add_user',
         'Посмотреть статистику по нику': 'viewing_user',
@@ -128,23 +126,31 @@ async def add_user(callback:CallbackQuery, session: AsyncSession, state: FSMCont
 
     await orm_add_user(session, data)
     await callback.message.answer(f"Игрок {data['nickname']} добавлен")
-    await callback.message.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
-        'Игроки': 'users',
-        'Игры': 'games',
-        'Статистика': 'statistics',
-    }, sizes=(3, )))
+    await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
     await state.clear()
     await state.set_state(ActionSelection.choice_action)
 
-# @user_private_router.callback_query(F.start.swith('back'),  StateFilter('*'))
-# async def back(callback:CallbackQuery, state: FSMContext):
-#     ccurent_state = await state.get_state()
-    
-#     stack = await state.get_data()
-#     print(stack)
-#     print(stack['stack'])
-
-
+@user_private_router.callback_query(F.data.startswith('back'),  StateFilter('*'))
+async def back(callback:CallbackQuery, state: FSMContext):
+    curent_state = await state.get_state()
+    previous = None
+    print(curent_state.split(':')[1])
+    data = await state.get_data()
+    if curent_state.split(':')[1] == 'type_game':
+        await callback.message.edit_text('Статистика по мафии', reply_markup=get_start_menu_kbds())
+        await state.clear()
+        await state.set_state(ActionSelection.choice_action)
+    elif curent_state.split(':')[1] == 'add_game_or_show_game':
+        await callback.message.edit_text('Выберите вид игры', reply_markup=get_callback_btns(btns={
+        'Рейтинг' : 'ranked',
+        'Турнир' : 'tournament',
+        'Назад' : 'back',
+    }))
+        await state.set_state(ActionSelection.type_game)
+    elif curent_state.split(':')[1] == 'users':
+        await callback.message.edit_text('Статистика по мафии', reply_markup=get_start_menu_kbds())
+        await state.clear()
+        await state.set_state(ActionSelection.choice_action)
 
 @user_private_router.callback_query(ActionSelection.users, F.data.startswith('get_all_in_club'))
 async def get_all_in_club(callback:CallbackQuery, session: AsyncSession, state:FSMContext):
@@ -164,6 +170,7 @@ async def get_all_in_club(callback:CallbackQuery, session: AsyncSession, state:F
 
 @user_private_router.callback_query(ActionSelection.choice_action, F.data.startswith('games'))
 async def games(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(choice_action=callback.data)
     await callback.message.edit_text('Выберите вид игры', reply_markup=get_callback_btns(btns={
         'Рейтинг' : 'ranked',
         'Турнир' : 'tournament',
@@ -172,7 +179,7 @@ async def games(callback: CallbackQuery, state: FSMContext):
     s = 'type_game'
     await state.set_state(ActionSelection.type_game)
 
-@user_private_router.callback_query(ActionSelection.type_game, or_f(F.data.startswith('ranked'), F.data.startswith('tournament')))
+@user_private_router.callback_query(ActionSelection.type_game) #, or_f(F.data.startswith('ranked'), F.data.startswith('tournament'))
 async def choice_type_game(callback: CallbackQuery, state: FSMContext):    
     await state.update_data(type_game=callback.data)
 
@@ -181,75 +188,59 @@ async def choice_type_game(callback: CallbackQuery, state: FSMContext):
         'посмотреть игру': 'show_game',
         'Назад' : 'back',
     }))
-
     await state.set_state(ActionSelection.add_game_or_show_game)
 
 @user_private_router.callback_query(ActionSelection.add_game_or_show_game, F.data.startswith('add_game'))
 async def start_handler_for_add_nickname(callback: CallbackQuery, state:FSMContext, session:AsyncSession):
     nicknames = await orm_get_all_nicknames(session)
     await state.update_data(add_game_or_swow_game=nicknames)
-    await callback.message.edit_text("Выберите один из вариантов:", reply_markup=get_paginator_keyboard(data=nicknames))
+    await callback.message.edit_text("Выберите игроков:", reply_markup=get_paginator_keyboard(data=nicknames))
     await state.set_state(AddGame.add_players_in_game)
 
 @user_private_router.callback_query(F.data.startswith("page_"), AddGame.add_players_in_game)
 async def handle_pagination(callback: CallbackQuery, state: FSMContext):
     page = int(callback.data.split('_')[1])
     data = await state.get_data()
-    print(f'data{data}')
     nicknames = data.get("add_game_or_swow_game", [])
     await callback.message.edit_reply_markup(reply_markup=get_paginator_keyboard(page=page, data=nicknames))
-    # await bot.answer_callback_query(callback_query.id)
 
 @user_private_router.callback_query(AddGame.add_players_in_game, F.data.startswith('select_'))
 async def add_nickname(callback: CallbackQuery, state: FSMContext, session:AsyncSession): 
     data = await state.get_data()    
-    type_game = data['type_game']
     all_nicknames = data['add_game_or_swow_game']
     nick = callback.data.split('_')[1]
     data = await state.get_data()
-    
     nicknames = data.get("add_players_in_game", [])
 
     if nick not in nicknames:
-        nicknames.append(nick)
-        
+        nicknames.append(nick)        
         await state.update_data(add_players_in_game=nicknames)
-
         if len(nicknames) < 10:
-            
             page = 0  
             await callback.message.edit_text(f'Вы добавили {nick}. Всего игроков добавлено: {len(nicknames)}',reply_markup=get_paginator_keyboard(page=page, data=all_nicknames))
-            # await bot.answer_callback_query(callback.id)
         else:
             formatted_nicknames = ",  ".join([f"{i+1}) {nickname}" for i, nickname in enumerate(nicknames)])
             await callback.message.edit_text(f"Вы выбрали: {formatted_nicknames}", reply_markup=get_callback_btns(btns={
                 'Ок': 'add_role',
                 'изменить': 'add_game',
             }))       
-            await state.set_state(AddGame.add_role)
-            # await bot.answer_callback_query(callback.id)
+            await state.set_state(AddGame.add_role) 
     else:
         page = 0  
         try:
             await callback.message.edit_text(f'Игрок {nick} уже был добавлен, выберите другого. \n Игроков добавлено: {len(nicknames)}',reply_markup=get_paginator_keyboard(page=page, data=all_nicknames))
         except:
-            await callback.message.edit_text(f'ошибка при добавлении. Если ошибка повторится, обобратитесь к Математику', reply_markup=get_callback_btns(btns={
-        'Игроки': 'users',
-        'Игры': 'games',
-        'Статистика': 'statistics',
-    }, sizes=(3, )))
+            await callback.message.edit_text(f'ошибка при добавлении. Если ошибка повторится, обобратитесь к Математику', reply_markup=get_start_menu_kbds())
             await state.clear()
             await state.set_state(ActionSelection.choice_action)
 
 @user_private_router.callback_query(AddGame.add_role,  F.data.startswith('add_game')) 
-async def correct_users_in_game(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def correct_users_in_game(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     nicknames = data['add_game_or_swow_game']
     await state.update_data(add_players_in_game=[])    
     await callback.message.edit_text("Выберите один из вариантов:", reply_markup=get_paginator_keyboard(data=nicknames))
     await state.set_state(AddGame.add_players_in_game)
-
-
 
 @user_private_router.callback_query(AddGame.add_role, F.data.startswith('add_role'))
 async def start_handler_for_add_role(callback: CallbackQuery, state: FSMContext):
@@ -272,7 +263,6 @@ async def add_role(callback: CallbackQuery, state: FSMContext):
     roles.append(role)
     await state.update_data(add_role=roles)
     if len(roles) < 10:
-
         await callback.message.edit_text(f'Выберите роль для {nicknames[len(roles)]}', reply_markup=get_callback_btns(btns={
             'Мирный': 'mir',
             'Мафия': 'mafia',
@@ -405,7 +395,6 @@ async def start_handler_best_step(callback: CallbackQuery, state: FSMContext):
 @user_private_router.callback_query(AddGame.add_best_step, F.data.startswith('bs'))
 async def add_best_step(callback: CallbackQuery, state: FSMContext):
     bs = callback.data.split('_')[1]
-
     data = await state.get_data()
     nicknames = data["add_players_in_game"]
     best_step = data.get('add_best_step', [])
@@ -431,7 +420,6 @@ async def correct_best_step(callback: CallbackQuery, state: FSMContext):
 
 @user_private_router.callback_query(AddGame.winner, F.data.startswith('winner'))
 async def add_winner(callback: CallbackQuery, state: FSMContext):
-
     await callback.message.answer('Выберите победителя', reply_markup=get_callback_btns(btns={
         'Мирные':'mir',
         'Мафия':'mafia',
@@ -489,22 +477,13 @@ async def save_game(callback: CallbackQuery, state: FSMContext, session: AsyncSe
     await state.clear()
 
     await callback.message.edit_text('Игра сохранена')
-    await callback.message.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
-        'Игроки': 'users',
-        'Игры': 'games',
-        'Статистика': 'statistics',
-    }, sizes=(3, )))
+    await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
     await state.set_state(ActionSelection.choice_action)
 
 @user_private_router.callback_query(AddGame.review, F.data.startswith('cancel'))
 async def cancel_game(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-
-    await callback.message.answer('Статистика по мафии', reply_markup=get_callback_btns(btns={
-        'Игроки': 'users',
-        'Игры': 'games',
-        'Статистика': 'statistics',
-    }, sizes=(3, )))
+    await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
     await state.set_state(ActionSelection.choice_action)
 
 
