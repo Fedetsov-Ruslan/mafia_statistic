@@ -4,9 +4,9 @@ from aiogram.filters.callback_data import CallbackData
 
 def get_start_menu_kbds():
     keyboard = InlineKeyboardBuilder()
-    keyboard.add(InlineKeyboardButton(text="👤 Users", callback_data="users"))
-    keyboard.add(InlineKeyboardButton(text="🎮 Games", callback_data="games"))
-    keyboard.add(InlineKeyboardButton(text="📊 Statistics", callback_data="statistics"))
+    keyboard.add(InlineKeyboardButton(text="👤 Игроки", callback_data="users"))
+    keyboard.add(InlineKeyboardButton(text="🎮 Игры", callback_data="games"))
+    keyboard.add(InlineKeyboardButton(text="📊 Статистика", callback_data="statistics"))
     return keyboard.as_markup()
 
 def get_callback_btns(
@@ -19,26 +19,25 @@ def get_callback_btns(
         keyboard.add(InlineKeyboardButton(text=text, callback_data=data))
     return keyboard.adjust(*sizes).as_markup()
 
-
 def get_paginator_keyboard(*, 
                            page: int = 0, 
                            items_per_page: int=10,
                            data: list[str] = [],
-                           sizes: tuple[int] = (5,)):
+                           sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
     start = page * items_per_page
     end = start + items_per_page
     for user in data[start:end]:
         if user in data:
-            keyboard.add(InlineKeyboardButton(text=user + " ✅", callback_data=f"select_{user}"))
+            keyboard.add(InlineKeyboardButton(text=user, callback_data=f"select_{user}"))
         else:
             keyboard.add(InlineKeyboardButton(text=user, callback_data=f"select_{user}"))
 
     navigation_buttons = []
     if start > 0:
-        navigation_buttons.append(InlineKeyboardButton(text="Previous", callback_data=f"page_{page - 1}"))
+        navigation_buttons.append(InlineKeyboardButton(text="Предыдущая страница", callback_data=f"page_{page - 1}"))
     if end < len(data):
-        navigation_buttons.append(InlineKeyboardButton(text="Next", callback_data=f"page_{page + 1}"))
+        navigation_buttons.append(InlineKeyboardButton(text="Следующая страница", callback_data=f"page_{page + 1}"))
 
     keyboard.add(*navigation_buttons)
     return keyboard.adjust(*sizes).as_markup()
