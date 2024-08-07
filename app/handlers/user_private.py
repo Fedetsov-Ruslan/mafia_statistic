@@ -194,9 +194,9 @@ async def choice_type_game(callback: CallbackQuery, state: FSMContext):
 
 @user_private_router.callback_query(ActionSelection.add_game_or_show_game, F.data.startswith('add_game'))
 async def start_handler_for_add_nickname(callback: CallbackQuery, state:FSMContext, session:AsyncSession):
-    nicknames = await orm_get_all_nicknames(session)
-    await state.update_data(add_game_or_swow_game=nicknames)
-    await callback.message.edit_text("Выберите игроков. Игроков добавленно: 0", reply_markup=get_paginator_keyboard(data=nicknames))
+    all_nicknames = await orm_get_all_nicknames(session)
+    await state.update_data(add_game_or_swow_game=all_nicknames)
+    await callback.message.edit_text("Выберите игроков. Игроков добавленно: 0", reply_markup=get_paginator_keyboard(data=all_nicknames))
     await state.set_state(AddGame.add_players_in_game)
 
 @user_private_router.callback_query(F.data.startswith("page_"), AddGame.add_players_in_game)
@@ -213,9 +213,10 @@ async def add_nickname(callback: CallbackQuery, state: FSMContext, session:Async
     nick = callback.data.split('_')[1]
     data = await state.get_data()
     nicknames = data.get("add_players_in_game", [])
-
+    
     if nick not in nicknames:
-        nicknames.append(nick)        
+        nicknames.append(nick)
+        all_nicknames.remove(nick)        
         await state.update_data(add_players_in_game=nicknames)
         if len(nicknames) < 10:
             page = 0  
@@ -237,11 +238,12 @@ async def add_nickname(callback: CallbackQuery, state: FSMContext, session:Async
             await state.set_state(ActionSelection.choice_action)
 
 @user_private_router.callback_query(AddGame.add_role,  F.data.startswith('add_game')) 
-async def correct_users_in_game(callback: CallbackQuery, state: FSMContext):
+async def correct_users_in_game(callback: CallbackQuery, state: FSMContext, session:AsyncSession):
     data = await state.get_data()
-    nicknames = data['add_game_or_swow_game']
-    await state.update_data(add_players_in_game=[])    
-    await callback.message.edit_text("Выберите один из вариантов:", reply_markup=get_paginator_keyboard(data=nicknames))
+    all_nicknames = await orm_get_all_nicknames(session)
+    await state.update_data(add_game_or_swow_game=all_nicknames) 
+    await state.update_data(add_players_in_game=[]) 
+    await callback.message.edit_text("Выберите один из вариантов:", reply_markup=get_paginator_keyboard(data=all_nicknames))
     await state.set_state(AddGame.add_players_in_game)
 
 @user_private_router.callback_query(AddGame.add_role, F.data.startswith('add_role'))
@@ -423,7 +425,7 @@ async def correct_best_step(callback: CallbackQuery, state: FSMContext):
 @user_private_router.callback_query(AddGame.winner, F.data.startswith('winner'))
 async def add_winner(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer('Выберите победителя', reply_markup=get_callback_btns(btns={
-        'Мирные':'Мирные',
+        'Мирные':'Мирный',
         'Мафия':'Мафия',
         'Ничья':'Ничья',
         }))
