@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram_calendar import  SimpleCalendar
 
 from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_save_game
-from app.kbds.inline import get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
+from app.kbds.inline import get_add_don_kbds, get_add_mafia_kbds, get_add_sheriff_kbds, get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
 
 
 class ActionSelection(StatesGroup):
@@ -247,32 +247,43 @@ async def correct_users_in_game(callback: CallbackQuery, state: FSMContext, sess
     await state.set_state(AddGame.add_players_in_game)
 
 @user_private_router.callback_query(AddGame.add_role, F.data.startswith('add_role'))
-async def start_handler_for_add_role(callback: CallbackQuery, state: FSMContext):
+async def add_sherif(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     nicknames = data["add_players_in_game"]
-    roles = data.get('add_role', [])    
-    await callback.message.answer(f'Выберите роль для {nicknames[len(roles)]}', reply_markup=get_callback_btns(btns={
-            'Мирный': 'Мирный',
-            'Мафия': 'Мафия',
-            'Шериф': 'Шериф',
-            'Дон': 'Дон',
-        }))
-    
-@user_private_router.callback_query(AddGame.add_role, or_f(F.data.startswith('Мирный'), F.data.startswith('Мафия'), F.data.startswith('Шериф'), F.data.startswith('Дон')))
-async def add_role(callback: CallbackQuery, state: FSMContext):
-    role = callback.data
-    data = await state.get_data()
-    nicknames = data["add_players_in_game"]
-    roles = data.get('add_role', [])
-    roles.append(role)
+    roles =['Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный']
     await state.update_data(add_role=roles)
-    if len(roles) < 10:
-        await callback.message.edit_text(f'Выберите роль для {nicknames[len(roles)]}', reply_markup=get_callback_btns(btns={
-            'Мирный': 'Мирный',
-            'Мафия': 'Мафия',
-            'Шериф': 'Шериф',
-            'Дон': 'Дон',
-        }))
+    await callback.message.edit_text("Выберите шерифа игры:", reply_markup=get_add_sheriff_kbds(data=nicknames)) 
+
+@user_private_router.callback_query(AddGame.add_role, F.data.startswith('sheriff_'))
+async def add_don(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    nick = callback.data.split('_')[1]
+    roles = data.get('add_role')
+    roles[nicknames.index(nick)] = 'Шериф'
+    await state.update_data(add_role=roles)
+    await callback.message.edit_text("Выберите Дона игры:", reply_markup=get_add_don_kbds(data=nicknames)) 
+
+@user_private_router.callback_query(AddGame.add_role, F.data.startswith('don_'))
+async def add_fol(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    nick = callback.data.split('_')[1]
+    roles = data.get('add_role')
+    roles[nicknames.index(nick)] = 'Дон'
+    await state.update_data(add_role=roles)
+    await callback.message.edit_text("Выберите первую мафию:", reply_markup=get_add_mafia_kbds(data=nicknames))
+
+@user_private_router.callback_query(AddGame.add_role, F.data.startswith('mafia_'))
+async def add_fol(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    nicknames = data["add_players_in_game"]
+    nick = callback.data.split('_')[1]
+    roles = data.get('add_role')
+    roles[nicknames.index(nick)] = 'Мафия'
+    await state.update_data(add_role=roles)
+    if roles.count('Мафия') == 1:                
+        await callback.message.edit_text("Выберите вторую мафию:", reply_markup=get_add_mafia_kbds(data=nicknames))
     else:
         combined = [f'{nick} - {role}' for nick, role in zip(nicknames, roles)]
         await callback.message.edit_text(' ;'.join(combined), reply_markup=get_callback_btns(btns={
@@ -282,19 +293,17 @@ async def add_role(callback: CallbackQuery, state: FSMContext):
         await state.set_state(AddGame.add_fol)
 
 @user_private_router.callback_query(AddGame.add_fol, F.data.startswith('add_role'))
-async def correct_role_in_game(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(add_role=[])
+async def correct_roles_in_game(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     nicknames = data["add_players_in_game"]
-    roles = data.get('add_role', [])    
-    await callback.message.edit_text(f'Выберите роль для {nicknames[len(roles)]}', reply_markup=get_callback_btns(btns={
-            'Мирный': 'Мирный',
-            'Мафия': 'Мафия',
-            'Шериф': 'Шериф',
-            'Дон': 'Дон',
-        }))
+    roles =['Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный','Мирный']
+    await state.update_data(add_role=roles)
+    await callback.message.edit_text("Выберите шерифа игры:", reply_markup=get_add_sheriff_kbds(data=nicknames)) 
     await state.set_state(AddGame.add_role)
-    
+
+
+
+
 @user_private_router.callback_query(AddGame.add_fol, F.data.startswith('add_fol'))
 async def start_handler_for_add_fol(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()

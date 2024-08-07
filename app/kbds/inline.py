@@ -61,3 +61,30 @@ def get_best_step_kbds(
         keyboard.add(InlineKeyboardButton(text=user, callback_data=f"bs_{user}"))
     
     return keyboard.adjust(5,5).as_markup()
+
+def get_add_sheriff_kbds(
+        *,
+        data: list[str] = [],):
+    keyboard = InlineKeyboardBuilder()
+
+    for user in data:
+        keyboard.add(InlineKeyboardButton(text=user, callback_data=f"sheriff_{user}"))
+    return keyboard.adjust(5,5).as_markup()
+
+def get_add_don_kbds(
+        *,
+        data: list[str] = [],):
+    keyboard = InlineKeyboardBuilder()
+
+    for user in data:
+        keyboard.add(InlineKeyboardButton(text=user, callback_data=f"don_{user}"))
+    return keyboard.adjust(5,5).as_markup()
+
+def get_add_mafia_kbds(
+        *,
+        data: list[str] = [],):
+    keyboard = InlineKeyboardBuilder()
+
+    for user in data:
+        keyboard.add(InlineKeyboardButton(text=user, callback_data=f"mafia_{user}"))
+    return keyboard.adjust(5,5).as_markup()
