@@ -35,8 +35,16 @@ async def orm_save_game(session: AsyncSession, data: dict):
         points=points,
         dop_points=data['add_point'],
         best_step=data['add_best_step'],
-        first_dead=data['add_first_dead'],
+        first_dead=data['add_players_in_game'].index(data['add_first_dead']),
         winner=data['add_winner'],
     )
     session.add(obj)
     await session.commit()
+
+async def orm_get_games(session: AsyncSession, data: dict):
+
+    first_date = datetime.datetime.strptime(data['add_game_or_show_game'][0], '%Y-%m-%d').date()
+    second_date = datetime.datetime.strptime(data['add_game_or_show_game'][1], '%Y-%m-%d').date()
+    query = select(Games).where(Games.date_game>=first_date, Games.date_game<=second_date, Games.types_game==data['type_game'])
+    result = await session.execute(query)
+    return result.scalars().all()

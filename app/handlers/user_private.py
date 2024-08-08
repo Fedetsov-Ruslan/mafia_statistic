@@ -6,8 +6,9 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram_calendar import  SimpleCalendar
 
-from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_save_game
+from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_get_games, orm_save_game
 from app.kbds.inline import get_add_don_kbds, get_add_mafia_kbds, get_add_point_kbds, get_add_sheriff_kbds, get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
+from app.transformation_data.transformation_db_data import transformation_db_data
 
 
 class ActionSelection(StatesGroup):
@@ -31,6 +32,8 @@ class AddGame(StatesGroup):
     winner = State()
     date_game = State()
     review = State()
+
+
     
 
 class AddUser(StatesGroup):
@@ -454,10 +457,48 @@ async def cancel_game(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
     await state.set_state(ActionSelection.choice_action)
 
+@user_private_router.callback_query(ActionSelection.add_game_or_show_game, F.data.startswith('show_game'))
+async def show_game(callback: CallbackQuery, state: FSMContext):
+
+    await callback.message.answer("Выберите первую дату:", reply_markup=await SimpleCalendar().start_calendar())
+
+@user_private_router.callback_query(ActionSelection.add_game_or_show_game, F.data.startswith('simple_calendar'))
+async def add_revie(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    if callback.data.split(':')[1] == 'PREV-MONTH':
+        new_month = int(callback.data.split(':')[3]) - 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(month=new_month))
+    elif callback.data.split(':')[1] == 'NEXT-MONTH':
+        new_month = int(callback.data.split(':')[3]) + 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(month=new_month))
+    elif callback.data.split(':')[1] == 'PREV-YEAR':
+        new_year = int(callback.data.split(':')[2]) - 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(year=new_year))
+    elif callback.data.split(':')[1] == 'NEXT-YEAR':
+        new_year = int(callback.data.split(':')[2]) + 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(year=new_year))
+    elif callback.data.split(':')[1] == 'DAY':
+        data = await state.get_data()
+        day = data.get('add_game_or_show_game', [])
+        day.append(callback.data.split('DAY:')[1].replace(':', '-'))
+        await state.update_data(add_game_or_show_game=day)
+        if len(day) == 2:
+            #запрос в базу на вывод игр по заданным датам
+            games = await orm_get_games(session, data=data)
+            for game in games:
+                list_game = await transformation_db_data(game)
+                table_in_game = '\n'.join(list_game)
+                await callback.message.answer(table_in_game)
+            await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
+            await state.clear()
+            await state.set_state(ActionSelection.choice_action)
+        else:
+            await callback.message.edit_text("Выберите вторую дату:", reply_markup=await SimpleCalendar().start_calendar())
+    else:
+        await callback.message.edit_text("Выберите дату или с помощью '<' и '>' выберите месяц:", reply_markup=await SimpleCalendar().start_calendar())
+
 @user_private_router.callback_query(ActionSelection.choice_action, F.data.startswith('statistics'))
 async def statistics(callback: CallbackQuery, state: FSMContext):
     await state.update_data(choice_action=callback.data)
-
     await callback.message.edit_text('Статистика по мафии для:', reply_markup=get_callback_btns(btns={
         'Cтаистика по всем игрокам':'all_statistic',
         'Cтатистика одного игрока':'one_statistic',
