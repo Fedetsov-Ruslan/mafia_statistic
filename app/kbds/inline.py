@@ -2,6 +2,25 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
+POINT_IN_GAME = {
+        '-0.5': '-0.5',
+        '-0.4': '-0.4',
+        '-0.3': '-0.3',
+        '-0.2': '-0.2',
+        '-0.1': '-0.1',
+        '0': '0',
+        '0.1': '0.1',
+        '0.2': '0.2',
+        '0.25': '0.25',
+        '0.3': '0.3',
+        '0.4': '0.4',
+        '0.5': '0.5',
+        '0.6': '0.6',
+        '0.7': '0.7',
+        '0.8': '0.8',
+        }
+
+
 def get_start_menu_kbds():
     keyboard = InlineKeyboardBuilder()
     keyboard.add(InlineKeyboardButton(text="👤 Игроки", callback_data="users"))
@@ -88,3 +107,10 @@ def get_add_mafia_kbds(
     for user in data:
         keyboard.add(InlineKeyboardButton(text=user, callback_data=f"mafia_{user}"))
     return keyboard.adjust(5,5).as_markup()
+
+def get_add_point_kbds():
+    keyboard = InlineKeyboardBuilder()
+
+    for key, value in POINT_IN_GAME.items():
+        keyboard.add(InlineKeyboardButton(text=key, callback_data=value))
+    return keyboard.adjust(5,5,5).as_markup()

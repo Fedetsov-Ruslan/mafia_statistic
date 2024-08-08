@@ -22,13 +22,18 @@ async def orm_save_game(session: AsyncSession, data: dict):
     date_game = datetime.datetime.strptime(data['date_game'], '%Y-%m-%d').date()
     data['add_fol'] = list(map(lambda x: int(x), data['add_fol']))
     data['add_point'] = list(map(lambda x: float(x), data['add_point']))
+    points = [1 if (role == data['add_winner']) 
+              or (role == 'Дон' and data['add_winner']=='Мафия') 
+              or (role == 'Шериф' and data['add_winner']=='Мирный')
+              else 0 for role in data['add_role']]
     obj = Games(
         types_game=data['type_game'],
         date_game=date_game,
         gamers=data['add_players_in_game'],
         roles=data['add_role'],
         fols=data['add_fol'],
-        points=data['add_point'],
+        points=points,
+        dop_points=data['add_point'],
         best_step=data['add_best_step'],
         first_dead=data['add_first_dead'],
         winner=data['add_winner'],

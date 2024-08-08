@@ -20,6 +20,7 @@ class Games(Base):
     roles: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
     fols: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False)
     points: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
+    dop_points: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=True)
     best_step: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=True)
     first_dead: Mapped[str] = mapped_column(String(150), nullable=True)
     winner: Mapped[str] = mapped_column(String(15), nullable=True)
