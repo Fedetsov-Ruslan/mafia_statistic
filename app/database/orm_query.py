@@ -2,9 +2,10 @@ import datetime
 
 from sqlalchemy import exists, select, update, delete, values
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.database.models import Users, Games
 
-from app.database.models import Users, Games, Statistics
-
+ #TODO  изменить все запросы в связи с изменением моделей таблиц
+ 
 async def orm_add_user(session: AsyncSession, data: dict):
     obj = Users(nickname=data['nickname'], gender=data['gender'], club=data['club'])
     session.add(obj)

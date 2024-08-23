@@ -8,7 +8,7 @@ from aiogram_calendar import  SimpleCalendar
 
 from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_get_games, orm_save_game
 from app.kbds.inline import get_add_don_kbds, get_add_mafia_kbds, get_add_point_kbds, get_add_sheriff_kbds, get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
-from app.transformation_data.transformation_db_data import transformation_db_data
+from app.transformation_data.transformation_db_data import tr, transformation_db_data
 
 
 class ActionSelection(StatesGroup):
@@ -488,6 +488,8 @@ async def add_revie(callback: CallbackQuery, state: FSMContext, session: AsyncSe
                 list_game = await transformation_db_data(game)
                 table_in_game = '\n'.join(list_game)
                 await callback.message.answer(table_in_game)
+                # img = await tr(game)
+                # await callback.message.answer_photo(photo=img)
             await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
             await state.clear()
             await state.set_state(ActionSelection.choice_action)

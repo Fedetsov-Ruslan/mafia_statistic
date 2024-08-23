@@ -10,22 +10,6 @@ class Base(DeclarativeBase):
     updated: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
 
-class Games(Base):
-    __tablename__='games'
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    types_game: Mapped[str] = mapped_column(String(15), nullable=False)
-    date_game: Mapped[date] = mapped_column(Date, nullable=False)
-    gamers: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
-    roles: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
-    fols: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False)
-    points: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
-    dop_points: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=True)
-    best_step: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=True)
-    first_dead: Mapped[str] = mapped_column(String(150), nullable=True)
-    winner: Mapped[str] = mapped_column(String(15), nullable=True)
-
-
 class Statistics(Base):
     __tablename__='statistics'
 
@@ -48,7 +32,36 @@ class Users(Base):
     nickname: Mapped[str] = mapped_column(String(150), nullable=False)
     gender: Mapped[str] = mapped_column(String(15), nullable=True)
     club: Mapped[str] = mapped_column(String(150), nullable=True)
-    # birthdate: Mapped[date] = mapped_column(Date, nullable=True)
+    
+class Games(Base):
+    __tablename__='games'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    type_games: Mapped[str] = mapped_column(String(15), nullable=False)
+    date_game: Mapped[date] = mapped_column(Date, nullable=False)
+    first_dead: Mapped[str] = mapped_column(String(150), nullable=True)
+    winner: Mapped[str] = mapped_column(String(15), nullable=True)
+
+class GameResults(Base):
+    __tablename__='game_results'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey('games.id'), nullable=False)
+    player_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    seat_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    role: Mapped[str] = mapped_column(String(15), nullable=False)
+    fols: Mapped[int] = mapped_column(Integer, nullable=False)
+    points: Mapped[float] = mapped_column(Float, nullable=False)
+    dop_points: Mapped[float] = mapped_column(Float, nullable=True)
+
+
+class BestStep(Base):
+    __tablename__ = 'best_step'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey('games.id'), nullable=False)
+    seat_number: Mapped[int] = mapped_column(Integer, nullable=False)
+
     
 
 
