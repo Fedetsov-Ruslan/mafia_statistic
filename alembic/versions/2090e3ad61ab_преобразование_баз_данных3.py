@@ -23,7 +23,8 @@ def upgrade() -> None:
     op.alter_column('best_step', 'seat_number',
                existing_type=sa.VARCHAR(length=30),
                type_=sa.Integer(),
-               existing_nullable=False)
+               existing_nullable=False,
+               postgresql_using='seat_number::integer')
     # ### end Alembic commands ###
 
 

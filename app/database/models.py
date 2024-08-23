@@ -60,7 +60,7 @@ class BestStep(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     game_id: Mapped[int] = mapped_column(ForeignKey('games.id'), nullable=False)
-    seat_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    seat_number: Mapped[int] = mapped_column(Integer, nullable=True)
 
     
 
