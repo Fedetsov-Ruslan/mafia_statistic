@@ -20,26 +20,43 @@ async def orm_get_all_nicknames(session: AsyncSession):
     return result.scalars().all()
 
 async def orm_save_game(session: AsyncSession, data: dict):
-    date_game = datetime.datetime.strptime(data['date_game'], '%Y-%m-%d').date()
+    date_on_game = datetime.datetime.strptime(data['date_game'], '%Y-%m-%d').date()
     data['add_fol'] = list(map(lambda x: int(x), data['add_fol']))
     data['add_point'] = list(map(lambda x: float(x), data['add_point']))
-    points = [1 if (role == data['add_winner']) 
+    point_sum = [1 if (role == data['add_winner']) 
               or (role == 'Дон' and data['add_winner']=='Мафия') 
               or (role == 'Шериф' and data['add_winner']=='Мирный')
               else 0 for role in data['add_role']]
-    obj = Games(
-        types_game=data['type_game'],
-        date_game=date_game,
-        gamers=data['add_players_in_game'],
-        roles=data['add_role'],
-        fols=data['add_fol'],
-        points=points,
-        dop_points=data['add_point'],
-        best_step=data['add_best_step'],
-        first_dead=data['add_players_in_game'].index(data['add_first_dead']),
+    new_game = Games(
+        type_games=data['type_game'],
+        date_game=date_on_game,
+        first_dead=str(data['add_players_in_game'].index(data['add_first_dead'])),
         winner=data['add_winner'],
     )
-    session.add(obj)
+    session.add(new_game)
+    session.flush()
+    query = select(Users.nickname, Users.id).where(Users.nickname.in_(data['add_players_in_game']))
+    result = await session.execute(query)
+    all_playres = {nickname: id for nickname, id in result.all()}
+    for i in range(len(data['add_role'])):
+        new_game_results = GameResults(
+            game_id=new_game.id,
+            player_id=all_playres[data['add_players_in_game'][i]],
+            seat_number=i+1,
+            role=data['add_role'][i],
+            fols=data['add_fol'][i],
+            points=point_sum[i],
+            dop_points=data['add_point'][i],
+        )
+        session.add(new_game_results)
+    if data['add_first_dead'] != '':
+        for seat in data['add_best_step']:
+            new_best_step = BestStep(
+                game_id=new_game.id,
+                seat_number=all_playres[seat],
+            )
+            session.add(new_best_step)
+    
     await session.commit()
 
 async def orm_get_games(session: AsyncSession, data: dict):
