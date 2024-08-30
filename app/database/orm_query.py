@@ -63,6 +63,22 @@ async def orm_get_games(session: AsyncSession, data: dict):
 
     first_date = datetime.datetime.strptime(data['add_game_or_show_game'][0], '%Y-%m-%d').date()
     second_date = datetime.datetime.strptime(data['add_game_or_show_game'][1], '%Y-%m-%d').date()
-    query = select(Games).where(Games.date_game>=first_date, Games.date_game<=second_date, Games.types_game==data['type_game'])
+    query = select(Games.id,Games.type_games, Games.date_game, 
+                   Games.first_dead, Games.winner, GameResults.seat_number,
+                   Users.nickname, GameResults.role, GameResults.fols, 
+                   GameResults.points, GameResults.dop_points).join(GameResults, GameResults.game_id==Games.id).join(Users, Users.id==GameResults.player_id).where(Games.date_game>=first_date, Games.date_game<=second_date, Games.type_games==data['type_game'])
     result = await session.execute(query)
-    return result.scalars().all()
+    
+    return result
+
+async def orm_get_best_step(session: AsyncSession, data: dict):
+    first_date = datetime.datetime.strptime(data['add_game_or_show_game'][0], '%Y-%m-%d').date()
+    second_date = datetime.datetime.strptime(data['add_game_or_show_game'][1], '%Y-%m-%d').date()
+    query = (
+        select(BestStep.game_id, Users.nickname)
+        .join(Games, Games.id==BestStep.game_id)
+        .join(Users, Users.id==BestStep.user_id)
+        .where(Games.date_game>=first_date, Games.date_game<=second_date, Games.type_games==data['type_game']))
+    result = await session.execute(query)
+
+    return result

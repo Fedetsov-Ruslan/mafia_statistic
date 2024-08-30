@@ -4,7 +4,7 @@ from tabulate import tabulate
 from PIL import Image, ImageDraw, ImageFont
 
 
-async def transformation_db_data(game:Games):
+async def transformation_db_data(game:dict):
 
     data_game = []
     date_and_number = 'Дата' +f'{game.date_game};'.rjust(20) + f'Номер {game.id}'.rjust(20)

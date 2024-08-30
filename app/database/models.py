@@ -60,7 +60,7 @@ class BestStep(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     game_id: Mapped[int] = mapped_column(ForeignKey('games.id'), nullable=False)
-    seat_number: Mapped[int] = mapped_column(Integer, nullable=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True) # тут хранится id игрока необходимо передлать название поля
 
     
 
