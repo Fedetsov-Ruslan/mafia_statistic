@@ -485,19 +485,26 @@ async def add_revie(callback: CallbackQuery, state: FSMContext, session: AsyncSe
             #запрос в базу на вывод игр по заданным датам
             games = await orm_get_games(session, data=data)
             best_step = await orm_get_best_step(session, data=data)
+            bs_list=[]
+            bs_in_game=[]
             for bs in best_step:
-                print(bs._asdict())
-            all_players = []
+                bs_in_game.append(bs._asdict())  
+                if len(bs_in_game) == 3:
+                    bs_list.append(bs_in_game)
+                    bs_in_game = []
+
+            all_games = []
+            players_in_game = []
             for game in games:
-                if len(all_players) < 10:
-                    all_players.append(game._asdict())
-                else:
-                    print(all_players)
-                    all_players = []
+                players_in_game.append(game._asdict())
+                if len(players_in_game) == 10:
+                    all_games.append(players_in_game)
+                    players_in_game = []
             
-                # list_game = await transformation_db_data(game)
-                # table_in_game = '\n'.join(list_game)
-                # await callback.message.answer(table_in_game)
+            all_games_list = await transformation_db_data(all_games, bs_list)
+            for game_list in all_games_list:
+                table_in_game = '\n'.join(game_list)
+                await callback.message.answer(table_in_game)
                
             await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
             await state.clear()
