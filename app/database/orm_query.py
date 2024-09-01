@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import exists, select, update, delete, values
+from sqlalchemy import distinct, exists, select, update, delete, values
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Users, Games, GameResults, BestStep
 
@@ -11,12 +11,16 @@ async def orm_add_user(session: AsyncSession, data: dict):
     session.add(obj)
     await session.commit()
 
-async def orm_get_all_users(session: AsyncSession):
-    result = await session.execute(select(Users))
+async def orm_get_all_users(session: AsyncSession, club: str):
+    result = await session.execute(select(Users).where(Users.club == club))
     return result.scalars().all()
 
 async def orm_get_all_nicknames(session: AsyncSession):
     result = await session.execute(select(Users.nickname))
+    return result.scalars().all()
+
+async def orm_get_clubs(session: AsyncSession):
+    result = await session.execute(select(distinct(Users.club)))
     return result.scalars().all()
 
 async def orm_save_game(session: AsyncSession, data: dict):

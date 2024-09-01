@@ -71,6 +71,15 @@ def get_first_dead_kbds(
     keyboard.add(InlineKeyboardButton(text='ПУ нету', callback_data='no_dead'))
     return keyboard.adjust(5,5,1).as_markup()
 
+def get_club_kbds(
+        *,
+        data: list[str] = [],):
+    keyboard = InlineKeyboardBuilder()
+
+    for club in data:
+        keyboard.add(InlineKeyboardButton(text=club, callback_data=club))
+    return keyboard.adjust(5,5,1).as_markup()
+
 def get_best_step_kbds(
         *,
         data: list[str] = [],):

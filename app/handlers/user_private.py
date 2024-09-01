@@ -6,14 +6,15 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram_calendar import  SimpleCalendar
 
-from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_get_best_step, orm_get_games, orm_save_game
-from app.kbds.inline import get_add_don_kbds, get_add_mafia_kbds, get_add_point_kbds, get_add_sheriff_kbds, get_best_step_kbds, get_callback_btns, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
+from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_get_best_step, orm_get_clubs, orm_get_games, orm_save_game
+from app.kbds.inline import get_add_don_kbds, get_add_mafia_kbds, get_add_point_kbds, get_add_sheriff_kbds, get_best_step_kbds, get_callback_btns, get_club_kbds, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
 from app.transformation_data.transformation_db_data import tr, transformation_db_data
 
 
 class ActionSelection(StatesGroup):
     choice_action = State()
     users = State()
+    club = State()
     games = State()
     statistics = State()
     viewing_user = State()
@@ -129,10 +130,21 @@ async def back(callback:CallbackQuery, state: FSMContext):
         await state.set_state(ActionSelection.choice_action)
 
 @user_private_router.callback_query(ActionSelection.users, F.data.startswith('get_all_in_club'))
+async def choose_club(callback:CallbackQuery, state:FSMContext, session: AsyncSession):
+    clubs = await orm_get_clubs(session)
+    club_list = [club for club in clubs]
+    await callback.message.edit_text('Выберите игровой клуб', reply_markup=get_club_kbds(data=club_list))
+    await state.set_state(ActionSelection.club)
+
+@user_private_router.callback_query(ActionSelection.club)
 async def get_all_in_club(callback:CallbackQuery, session: AsyncSession, state:FSMContext):
-    users = await orm_get_all_users(session)
+    club = callback.data
+    users = await orm_get_all_users(session, club)
     data_users = [f"Ник - {user.nickname}  *  Пол - {user.gender}  *   клуб - {user.club}" for user in users] 
-    await callback.message.answer("\n".join(data_users))
+    while data_users != []:
+        chunk = data_users[:20]
+        await callback.message.answer("\n".join(chunk))
+        data_users = data_users[20:]
     await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
     await state.set_state(ActionSelection.choice_action)
 
