@@ -1,10 +1,9 @@
 import datetime
 
 from sqlalchemy import distinct, exists, select, update, delete, values
+from sqlalchemy.orm import Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import Users, Games, GameResults, BestStep
-
- #TODO  изменить все запросы в связи с изменением моделей таблиц
 
 async def orm_add_user(session: AsyncSession, data: dict):
     obj = Users(nickname=data['nickname'], gender=data['gender'], club=data['club'])
@@ -63,10 +62,8 @@ async def orm_save_game(session: AsyncSession, data: dict):
     
     await session.commit()
 
-async def orm_get_games(session: AsyncSession, data: dict):
+async def orm_get_games(session: AsyncSession, first_date : datetime.date, second_date : datetime.date, data : dict):
 
-    first_date = datetime.datetime.strptime(data['add_game_or_show_game'][0], '%Y-%m-%d').date()
-    second_date = datetime.datetime.strptime(data['add_game_or_show_game'][1], '%Y-%m-%d').date()
     query = select(Games.id,Games.type_games, Games.date_game, 
                    Games.first_dead, Games.winner, GameResults.seat_number,
                    Users.nickname, GameResults.role, GameResults.fols, 
@@ -75,9 +72,7 @@ async def orm_get_games(session: AsyncSession, data: dict):
     
     return result
 
-async def orm_get_best_step(session: AsyncSession, data: dict):
-    first_date = datetime.datetime.strptime(data['add_game_or_show_game'][0], '%Y-%m-%d').date()
-    second_date = datetime.datetime.strptime(data['add_game_or_show_game'][1], '%Y-%m-%d').date()
+async def orm_get_best_step(session: AsyncSession, first_date : datetime.date, second_date : datetime.date, data : dict):
     query = (
         select(BestStep.game_id, Users.nickname)
         .join(Games, Games.id==BestStep.game_id)
@@ -86,3 +81,15 @@ async def orm_get_best_step(session: AsyncSession, data: dict):
     result = await session.execute(query)
 
     return result
+
+async def statistics_collection(session: AsyncSession, data: dict):
+    first_date = datetime.datetime.strptime(data['add_game_or_show_game'][0], '%Y-%m-%d').date()
+    second_date = datetime.datetime.strptime(data['add_game_or_show_game'][1], '%Y-%m-%d').date()
+
+    games = await orm_add_user(session, data)
+    players = select(GameResults.player_id, Users.nickname).join(Games, Games.id==GameResults.game_id). join(Users, Users.id==GameResults.player_id).where(Games.date_game>=first_date, Games.date_game<=second_date, Games.type_games==data['type_game'])
+    for game in games:
+        pass
+
+    
+

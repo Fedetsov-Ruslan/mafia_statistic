@@ -1,3 +1,4 @@
+import datetime
 from aiogram import Router, F, types
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command, StateFilter, or_f
@@ -9,6 +10,7 @@ from aiogram_calendar import  SimpleCalendar
 from app.database.orm_query import orm_add_user, orm_get_all_nicknames, orm_get_all_users, orm_get_best_step, orm_get_clubs, orm_get_games, orm_save_game
 from app.kbds.inline import get_add_don_kbds, get_add_mafia_kbds, get_add_point_kbds, get_add_sheriff_kbds, get_best_step_kbds, get_callback_btns, get_club_kbds, get_first_dead_kbds, get_paginator_keyboard, get_start_menu_kbds
 from app.transformation_data.transformation_db_data import tr, transformation_db_data
+from app.transformation_data.transformation_statistic import transformation_statistic
 
 
 class ActionSelection(StatesGroup):
@@ -16,7 +18,7 @@ class ActionSelection(StatesGroup):
     users = State()
     club = State()
     games = State()
-    statistics = State()
+    statistics_date = State()
     viewing_user = State()
     get_all_in_club = State()
     type_game = State()
@@ -495,8 +497,10 @@ async def add_revie(callback: CallbackQuery, state: FSMContext, session: AsyncSe
         await state.update_data(add_game_or_show_game=day)
         if len(day) == 2:
             #запрос в базу на вывод игр по заданным датам
-            games = await orm_get_games(session, data=data)
-            best_step = await orm_get_best_step(session, data=data)
+            first_date = datetime.datetime.strptime(data['add_game_or_show_game'][0], '%Y-%m-%d').date()
+            second_date = datetime.datetime.strptime(data['add_game_or_show_game'][1], '%Y-%m-%d').date()
+            games = await orm_get_games(session, first_date=first_date, second_date=second_date, data=data)
+            best_step = await orm_get_best_step(session, first_date=first_date, second_date=second_date, data=data)
             bs_list=[]
             bs_in_game=[]
             for bs in best_step:
@@ -529,23 +533,63 @@ async def add_revie(callback: CallbackQuery, state: FSMContext, session: AsyncSe
 @user_private_router.callback_query(ActionSelection.choice_action, F.data.startswith('statistics'))
 async def statistics(callback: CallbackQuery, state: FSMContext):
     await state.update_data(choice_action=callback.data)
-    await callback.message.edit_text('Статистика по мафии для:', reply_markup=get_callback_btns(btns={
-        'Cтаистика по всем игрокам':'all_statistic',
-        'Cтатистика одного игрока':'one_statistic',
-        'Cравнить двух игроков':'doble_statistic',
-        'Назад':'back'
-    }, sizes=(1,)))
+    await callback.message.answer("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar())
+    await state.set_state(ActionSelection.statistics_date)
 
 
 
 
+@user_private_router.callback_query(ActionSelection.statistics_date, F.data.startswith('simple_calendar'))
+async def first_date_statistic(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    if callback.data.split(':')[1] == 'PREV-MONTH':
+        new_month = int(callback.data.split(':')[3]) - 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(month=new_month))
+    elif callback.data.split(':')[1] == 'NEXT-MONTH':
+        new_month = int(callback.data.split(':')[3]) + 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(month=new_month))
+    elif callback.data.split(':')[1] == 'PREV-YEAR':
+        new_year = int(callback.data.split(':')[2]) - 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(year=new_year))
+    elif callback.data.split(':')[1] == 'NEXT-YEAR':
+        new_year = int(callback.data.split(':')[2]) + 1
+        await callback.message.edit_text("Выберите дату:", reply_markup=await SimpleCalendar().start_calendar(year=new_year))
+    elif callback.data.split(':')[1] == 'DAY':
+        data = await state.get_data()
+        day = data.get('statistics_date', [])
+        day.append(callback.data.split('DAY:')[1].replace(':', '-'))
+        await state.update_data(statistics_date=day)
+        if len(day) == 2:
+            #запрос в базу на вывод игр по заданным датам
+            first_date = datetime.datetime.strptime(data['statistics_date'][0], '%Y-%m-%d').date()
+            second_date = datetime.datetime.strptime(data['statistics_date'][1], '%Y-%m-%d').date()
+            data['type_game'] = 'ranked'
+            games = await orm_get_games(session, first_date=first_date, second_date=second_date, data=data)
+            players_in_game = []
+            for game in games:
+                players_in_game.append(game._asdict())
+                
+            statistic = await transformation_statistic(players_in_game)
+            
+            for key, value in statistic.items():
+                reting = value['reting']
+                count_games = value['count_games']
+                winrate = value['winrate']
+                mafia_winrate = value['mafia_winrate']
+                civilian_winrate = value['civilian_winrate']
+                don_winrate = value['don_winrate']
+                sheriff_winrate = value['sheriff_winrate']
+                fols_on_the_game = value['fols_on_the_game'] / value['count_games']
+                first_dead = value['first_dead'] / value['count_games'] *100
+                await callback.message.answer(f"{key} - Баллы:{reting} - Количество игр:{count_games} - Процент побед:{winrate}% - Мафией:{mafia_winrate}% - Мирным:{civilian_winrate}% - Доном:{don_winrate}% - Шерифом:{sheriff_winrate}% - Количество фолов за игру:{fols_on_the_game} - Первый убиенный: {first_dead}%")
 
-
-
-
-
-
-
+               
+            await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
+            await state.clear()
+            await state.set_state(ActionSelection.choice_action)
+        else:
+            await callback.message.edit_text("Выберите вторую дату:", reply_markup=await SimpleCalendar().start_calendar())
+    else:
+        await callback.message.edit_text("Выберите дату или с помощью '<' и '>' выберите месяц:", reply_markup=await SimpleCalendar().start_calendar())
 
 
 

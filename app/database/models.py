@@ -16,12 +16,12 @@ class Statistics(Base):
     userID: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
     reting: Mapped[int] = mapped_column(Integer, nullable=False)
     count_games: Mapped[int] = mapped_column(Integer, nullable=False)
-    winrate: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
-    first_dead: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False)
-    civilian_vinrate:Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
-    mafia_vinrate: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
-    sheriff_vinrate: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
-    don_vinrate: Mapped[list[float]] = mapped_column(ARRAY(Float), nullable=False)
+    winrate: Mapped[float] = mapped_column(Float, nullable=False)
+    first_dead: Mapped[int] = mapped_column(Integer, nullable=False)
+    civilian_vinrate:Mapped[float] = mapped_column(Float, nullable=False)
+    mafia_vinrate: Mapped[float] = mapped_column(Float, nullable=False)
+    sheriff_vinrate: Mapped[float] = mapped_column(Float, nullable=False)
+    don_vinrate: Mapped[float] = mapped_column(Float, nullable=False)
     fols_on_the_game: Mapped[float] = mapped_column(Float, nullable=True)
     
 
