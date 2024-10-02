@@ -1,6 +1,6 @@
 import datetime
 from aiogram import Router, F, types
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InputFile
 from aiogram.filters import CommandStart, Command, StateFilter, or_f
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
@@ -559,30 +559,15 @@ async def first_date_statistic(callback: CallbackQuery, state: FSMContext, sessi
         day.append(callback.data.split('DAY:')[1].replace(':', '-'))
         await state.update_data(statistics_date=day)
         if len(day) == 2:
-            #запрос в базу на вывод игр по заданным датам
             first_date = datetime.datetime.strptime(data['statistics_date'][0], '%Y-%m-%d').date()
             second_date = datetime.datetime.strptime(data['statistics_date'][1], '%Y-%m-%d').date()
             data['type_game'] = 'ranked'
             games = await orm_get_games(session, first_date=first_date, second_date=second_date, data=data)
             players_in_game = []
             for game in games:
-                players_in_game.append(game._asdict())
-                
+                players_in_game.append(game._asdict())               
             statistic = await transformation_statistic(players_in_game)
-            
-            for key, value in statistic.items():
-                reting = value['reting']
-                count_games = value['count_games']
-                winrate = value['winrate']
-                mafia_winrate = value['mafia_winrate']
-                civilian_winrate = value['civilian_winrate']
-                don_winrate = value['don_winrate']
-                sheriff_winrate = value['sheriff_winrate']
-                fols_on_the_game = value['fols_on_the_game'] / value['count_games']
-                first_dead = value['first_dead'] / value['count_games'] *100
-                await callback.message.answer(f"{key} - Баллы:{reting} - Количество игр:{count_games} - Процент побед:{winrate}% - Мафией:{mafia_winrate}% - Мирным:{civilian_winrate}% - Доном:{don_winrate}% - Шерифом:{sheriff_winrate}% - Количество фолов за игру:{fols_on_the_game} - Первый убиенный: {first_dead}%")
-
-               
+            await callback.message.answer_document(document=statistic, caption=' Статистика по мафии')               
             await callback.message.answer('Статистика по мафии', reply_markup=get_start_menu_kbds())
             await state.clear()
             await state.set_state(ActionSelection.choice_action)

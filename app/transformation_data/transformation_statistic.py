@@ -1,5 +1,35 @@
+import csv
+import pandas as pd
+from aiogram.types import InputFile
+from aiogram.types.input_file import FSInputFile
 
-
+def write_csv(statistic: dict):
+    with open('statistic.csv', mode='w', newline='', encoding='utf-8-sig') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Игрок', 'Баллы', 'Количество игр', 'Процент побед', 'Мафией', 'Мирным', 'Доном', 'Шерифом', 'Фолы за игру', 'Первый убиенный'])
+        for key, value in statistic.items():
+                reting = round(value['reting'], 2)
+                count_games = value['count_games']
+                winrate = round(value['winrate'], 2)
+                mafia_winrate = round(value['mafia_winrate'], 2)
+                civilian_winrate = round(value['civilian_winrate'], 2)
+                don_winrate = round(value['don_winrate'], 2)
+                sheriff_winrate = round(value['sheriff_winrate'], 2)
+                fols_on_the_game = round(value['fols_on_the_game'] / value['count_games'], 2)
+                first_dead = round(value['first_dead'] / value['count_games'] *100, 2)
+                
+                writer.writerow([
+                key, reting, count_games, winrate, mafia_winrate, 
+                civilian_winrate, don_winrate, sheriff_winrate, 
+                fols_on_the_game, first_dead
+            ])
+    df = pd.read_csv('statistic.csv', encoding='utf-8-sig')
+    
+    df.to_excel('statistic.xlsx', index=False, engine='openpyxl')
+    document = FSInputFile('statistic.xlsx')             
+    return document
+    
+    
 
 async def transformation_statistic(data: list[dict]):
     statistic = {}
@@ -66,4 +96,5 @@ async def transformation_statistic(data: list[dict]):
                                                             player_in_game['sheriff_win'] + 
                                                             player_in_game['don_win'] +
                                                             player_in_game['civilian_win'])/ player_in_game['count_games'] * 100    
-    return statistic
+    document = write_csv(statistic)
+    return document
