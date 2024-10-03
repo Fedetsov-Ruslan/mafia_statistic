@@ -1,9 +1,3 @@
-import datetime
-
-from app.database.models import Games
-from tabulate import tabulate
-from PIL import Image, ImageDraw, ImageFont
-
 
 async def transformation_db_data(games:list[dict], bs_list:list[dict]):
     all_games_list = []

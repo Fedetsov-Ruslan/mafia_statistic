@@ -1,12 +1,15 @@
 import csv
 import pandas as pd
-from aiogram.types import InputFile
 from aiogram.types.input_file import FSInputFile
 
 def write_csv(statistic: dict):
     with open('statistic.csv', mode='w', newline='', encoding='utf-8-sig') as file:
         writer = csv.writer(file)
-        writer.writerow(['Игрок', 'Баллы', 'Количество игр', 'Процент побед', 'Мафией', 'Мирным', 'Доном', 'Шерифом', 'Фолы за игру', 'Первый убиенный'])
+        writer.writerow(['Игрок', 'Баллы',
+                         'Количество игр', 'Процент побед',
+                         'Мафией', 'Мирным', 'Доном',
+                         'Шерифом', 'Фолы за игру',
+                         'Первый убиенный'])
         for key, value in statistic.items():
                 reting = round(value['reting'], 2)
                 count_games = value['count_games']
@@ -24,16 +27,13 @@ def write_csv(statistic: dict):
                 fols_on_the_game, first_dead
             ])
     df = pd.read_csv('statistic.csv', encoding='utf-8-sig')
-    
     df.to_excel('statistic.xlsx', index=False, engine='openpyxl')
     document = FSInputFile('statistic.xlsx')             
     return document
     
-    
 
 async def transformation_statistic(data: list[dict]):
     statistic = {}
-    
     for player_in_game in data:
         if player_in_game['nickname'] not in statistic:
             statistic[player_in_game['nickname']] = {
@@ -73,7 +73,7 @@ async def transformation_statistic(data: list[dict]):
         if player_in_game['role'] == 'Мирный' and player_in_game['winner'] == 'Мирные':
             statistic[player_in_game['nickname']]['civilian_games'] += 1
             statistic[player_in_game['nickname']]['civilian_win'] += 1
-        elif player_in_game['role'] == 'Мирные':
+        elif player_in_game['role'] == 'Мирный':
             statistic[player_in_game['nickname']]['civilian_games'] += 1
         statistic[player_in_game['nickname']]['count_games'] += 1
         
